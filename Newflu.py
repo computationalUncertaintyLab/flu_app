@@ -11,7 +11,7 @@ import altair as alt
 if __name__ == "__main__":
 
     # Set the working directory for hospital admission 
-    file_path_hosp = " https://raw.githubusercontent.com/cdcepi/FluSight-forecast-hub/refs/heads/main/target-data/target-hospital-admissions.csv"
+    file_path_hosp = "https://raw.githubusercontent.com/cdcepi/FluSight-forecast-hub/refs/heads/main/target-data/target-hospital-admissions.csv"
 
     # Set the working directory for ilidata 
     file_path_ili = "https://raw.githubusercontent.com/computationalUncertaintyLab/iliplus/refs/heads/main/ilidata.csv"
