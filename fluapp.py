@@ -258,7 +258,7 @@ if __name__ == "__main__":
 
     # sorting through epiweek column from csv file ili 
     ilidata['year'] = ilidata['epiweek'].astype(str).str[:4]  # First 4 digits for the year
-    ilidata['week'] = ilidata['epiweek'].astype(str).str[5:] # last 2 digits for the week 
+    ilidata['week'] = ilidata['epiweek'].astype(str).str[4:]  # last 2 digits for the week 
 
     # Display the first few rows of the modified data
     print(ilidata[['epiweek']].head())
