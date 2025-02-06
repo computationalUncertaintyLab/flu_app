@@ -1,3 +1,6 @@
+
+#kam, luo, mcandrew
+
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -7,204 +10,99 @@ import altair as alt
 
 if __name__ == "__main__":
 
-    # Set the working directory for hospital admission 
-    file_path_hosp = "https://raw.githubusercontent.com/cdcepi/FluSight-forecast-hub/refs/heads/main/target-data/target-hospital-admissions.csv"
+    #--merge ili and hosp data
+    @st.cache_data
+    def produce_data():
+        # Set the working directory for hospital admission 
+        file_path_hosp = "https://raw.githubusercontent.com/cdcepi/FluSight-forecast-hub/refs/heads/main/target-data/target-hospital-admissions.csv"
 
-    # Set the working directory for ilidata 
-    file_path_ili = "https://raw.githubusercontent.com/computationalUncertaintyLab/iliplus/refs/heads/main/ili_plus.csv"
-    # Read the CSV file for ili 
-    ilidata = pd.read_csv(file_path_ili)
+        # Set the working directory for ilidata 
+        file_path_ili = "https://raw.githubusercontent.com/computationalUncertaintyLab/iliplus/refs/heads/main/ili_plus.csv"
 
-    # Read the CSV file
-    fludata = pd.read_csv(file_path_hosp)
+        # Read the CSV file for ili 
+        ilidata = pd.read_csv(file_path_ili)
 
-#ILIDF
-    ilidf = pd.DataFrame(ilidata)
-    #cleaning offseason out of "season" column 
-    cleanilidf = ilidf[ilidf["season"] != "offseason"]
+        #cleaning offseason out of "season" column 
+        ilidata = ilidata[ilidata["season"] != "offseason"]
 
-    #removing the epiweek column 
-    cleanilidf = cleanilidf.drop(columns=['epiweek'])
-    
-    #function for season week instead of epiweek 
-    def ili_season_week(row): #something is wrong 
-        if row['week'] >= 40:
-            return row['week'] - 39
-        elif row ['week'] <=20:
-            return row['week'] + 12  # Offset by 13 for continuity
-        else:
-            return None
-    
-    st.markdown ("### Cleaned ili in order of epiyear weeks")
-    cleanilidf['ili_week'] = cleanilidf.apply(ili_season_week, axis=1)
-    cleanilidf = cleanilidf.sort_values(by=['season', 'ili_week'])
-    st.dataframe(cleanilidf)
+        #removing the epiweek column 
+        ilidata = ilidata.drop(columns=['epiweek'])
 
-#FLUDF
-    fludf = pd.DataFrame(fludata)
-    fludf['date'] = pd.to_datetime(fludf['date'])
+        #function for season week instead of epiweek 
+        def ili_season_week(row):
+            from epiweeks import Week
 
-    # Calculate epidemiological week and year for each date
-    fludf['epiweek'] = fludf['date'].apply(lambda x: Week.fromdate(x).week)
-    fludf['epiyear'] = fludf['date'].apply(lambda x: Week.fromdate(x).year)
+            if row.week <=20:
+                start_week = Week(row.year-1,40)
+            elif row.week>20:
+                start_week = Week(row.year,40)
 
-    # Define season based on epiweek and epiyear
-    def get_season(row):
-        epiyear = row['epiyear']
-        epiweek = row['epiweek']
-        if epiweek >= 40:
-            return f"{epiyear}/{epiyear + 1}"
-        elif 1 <= epiweek <= 20:
-            return f"{epiyear - 1}/{epiyear}"
-        else:
-            return "off season"
+            num_weeks = 0
+            row_week  = Week(row.year,row.week)
+            while start_week < row_week:
+                start_week = start_week+1
+                num_weeks+=1
+            return num_weeks
 
-    # Apply the get_season function to each row to create a new column 'season'
-    fludf['season'] = fludf.apply(get_season, axis=1)
-    cleanfludf = fludf[fludf["season"] != "off season"]
-    
-    cleanfludf = cleanfludf.drop(columns=['weekly_rate'])
+        # st.markdown ("### Cleaned ili in order of epiyear weeks")
+        ilidata['season_week'] = ilidata.apply(ili_season_week, axis=1)
+        ilidata                = ilidata.sort_values(by=['season', 'season_week'])
 
-    def flu_season_week(row): #something is wrong 
-        if row['season'] == "2021/2022":  # Special case for the first season
-            if 6 <= row['epiweek'] <= 20:  # Weeks 6-20
-                return row['epiweek'] # Start from 6 for week 6
-            #elif row['epiweek'] >= 40:  # Weeks 40-52
-                #return row['epiweek'] - 28  # Offset to place weeks 40-52 before week 0
-            else:
-                return None  # Ignore invalid weeks for this season
-        else:  # Regular case for other seasons
-            if row['epiweek'] >= 40:  # Weeks 40–52
-                return row['epiweek'] - 39  # Start from 0 for week 40
-            elif row['epiweek'] <= 20:  # Weeks 1–20
-                return row['epiweek'] + 12  # Offset by 13 for continuity
-            else:
-                return None  # Ignore invalid weeks
+        #--add dtaret date and end date
+        def add_start_and_end_date(row):
+            from epiweeks import Week
+            ew = Week(row.year,row.week)
+            start_date = ew.startdate()
+            end_date   = ew.enddate()
+            row["start_date"] = start_date.strftime("%Y-%m-%d")
+            row["end_date"]   = end_date.strftime("%Y-%m-%d")
+            return row
+        ilidata = ilidata.apply(add_start_and_end_date,1)
 
-    # st.dataframe with flu_season_week function
-    st.markdown ("### Cleaned seasons in order of epiyear weeks")
-    cleanfludf['flu_season_week'] = cleanfludf.apply(flu_season_week, axis=1)
-    cleanfludf = cleanfludf.sort_values(by=['season', 'flu_season_week'])
-    st.dataframe(cleanfludf)
+        hospdata = pd.read_csv(file_path_hosp)
+        
+        ili_plus_hosp = ilidata.merge(hospdata, left_on=['location','location_name','end_date'], right_on = ['location','location_name','date'] , how='left')
+        ili_plus_hosp = ili_plus_hosp.rename(columns = {"value":"hospitalizations"})
+        
+        ili_plus_hosp = ili_plus_hosp.melt( id_vars = ["location","location_name","season","year","week","season_week"] , value_vars = ["ili_plus","ili_plus_a","ili_plus_b","hospitalizations"] ,  value_name="y" )
 
-#combining the two data frames --> just to check 
-    # Rename columns to match for merging
-    cleanilidf = cleanilidf.rename(columns={'ili_week': 'season_week', 'week':'year_week'})
-    cleanfludf = cleanfludf.rename(columns={'flu_season_week': 'season_week', 'epiweek':'year_week'})
-
-    # Outer merge to preserve all ILI data, even if flu data doesn't exist for older seasons
-    combined_df = pd.merge(cleanilidf, cleanfludf, on=['season', 'season_week'], how='outer')
-
-    # Sort and display
-    combined_df = combined_df.sort_values(by=['season', 'season_week'])
-
-    st.markdown("### Combined Data (Preserving All ILI Data)")
-    st.dataframe(combined_df)
-
-#MERGE into 1 df 
-    # Rename columns to ensure consistency for merging
-    cleanilidf.rename(columns={'ili_week': 'season_week', 'location_name': 'state', 'location': 'FIPs'}, inplace=True)
-    cleanfludf.rename(columns={'flu_season_week': 'season_week', 'location_name': 'state', 'location': 'FIPs', 'epiyear':'year', 'value':'hosp admissions'}, inplace=True)
-
-    # Merge the two DataFrames on season, season_week, and location_name
-    merged_df = pd.merge(cleanilidf, cleanfludf, on=['season', 'season_week', 'state','FIPs','year'], how='outer')
-
-    # Sort the merged DataFrame for better readability
-    merged_df = merged_df.sort_values(by=['season', 'season_week', 'state','FIPs','year'])
-
-    # Display the merged DataFrame in Streamlit
-    st.markdown("### Merged ILI and Flu Data by Season, Week, and State")
-    st.dataframe(merged_df)
-
-#plot 
-    def plot_altair_chart(df, variable, season):
-        return alt.Chart(df).mark_line(point=True).encode(
-            x='season_week:Q',  # Use 'ili_week' for the X-axis
-            y=f'{variable}:Q',  # Dynamic Y-axis based on the variable
-            tooltip=['season_week', variable]  # Tooltip showing ili_week and the selected variable
-        ).properties(
-            title=f"{variable} data for {season}", width=600, height=400
-        )
+        return ili_plus_hosp
+    ili_plus_hosp = produce_data()
 
     # Add Streamlit widgets to select states and seasons
     st.markdown("## ILI Data by State and Season")
-    states = cleanilidf['state'].unique()  # Get the list of unique states
-    selected_states = st.multiselect("Select state to display charts for:", states, default=states[:1])  # Default to the first state
+    states          = ili_plus_hosp['location_name'].unique()  # Get the list of unique states
+    selected_states = st.multiselect(label = "Select state to display charts for:"
+                                     ,options = states
+                                     ,default = states[0])  # Default to the first state
 
     # Add Streamlit widget to select seasons
-    available_seasons = cleanilidf['season'].unique()
-    selected_seasons = st.multiselect(
-        "Select flu seasons to display:", 
-        available_seasons, 
-        default=available_seasons, 
-        key="season_selector"  # Unique key for season selector
+    available_seasons = ili_plus_hosp['season'].unique()
+    selected_seasons  = st.multiselect(
+        label = "Select flu seasons to display:"
+        , options = available_seasons
+        , default=available_seasons
     )
-    # Add widget to select the variable (hospital admissions, ili_plus, ili, or ilib)
-    variables = ['hosp admissions', 'ili_plus', 'ili_plus_a', 'ili_plus_b']
+
+    #Add widget to select the variable (hospital admissions, ili_plus, ili, or ilib)
+    variables          = ['hospitalizations', 'ili_plus', 'ili_plus_a', 'ili_plus_b']
     selected_variables = st.multiselect(
-        "Select the data variables to display:",
-        variables,
-        default=variables  # Default to all variables
+        label   = "Select the data variables to display:"
+        ,options = variables
+        ,default = variables  # Default to all variables
+    )
+    
+    selected_data = ili_plus_hosp.loc[ (ili_plus_hosp.location_name.isin(selected_states)) & (ili_plus_hosp.season.isin(selected_seasons)) & (ili_plus_hosp.variable.isin(selected_variables))  ]
+
+    chart = alt.Chart(selected_data).mark_line().encode(
+        x=alt.X("season_week:O", title="Season + Week")
+        ,y=alt.Y("y:Q", title="Y")
+        ,color="season:N"
+        ,column="variable:N"
+        ,row   ="location_name:N" 
+    ).properties(
+        width=200,
+        height=200
     )
 
-    # Function to plot charts for a given state and season
-    def plot_location_charts(df, location, season, variable):
-        location_df = df[(df['state'] == location) & (df['season'] == season)]
-        return alt.Chart(location_df).mark_line(point=True).encode(
-            x=alt.X('season_week:Q', title="Season Week"),
-            y=alt.Y(f'{variable}:Q', title=variable),
-            tooltip=['season_week', variable]
-        ).properties(
-            title=f"{location} - {season} - {variable}", width=600, height=400
-        )
-
-    # Iterate through selected locations, seasons, and variables
-    for location in selected_states:
-        st.markdown(f"### Charts for {location}")
-        for season in selected_seasons:
-            # Skip empty data
-            if merged_df[(merged_df['state'] == location) & (merged_df['season'] == season)].empty:
-                continue
-
-            # Plot charts for each variable selected
-            for variable in selected_variables:
-                # Create and display the chart for the specific location, season, and variable
-                chart = plot_location_charts(merged_df, location, season, variable)
-                st.altair_chart(chart, use_container_width=True)
-
-    # Function to plot overlayed charts for selected states and seasons and variables #not properly working
-    def plot_overlay_states_seasons(df, states, seasons, variables):
-        # Filter data based on selected states, seasons, and variables
-        filtered_df = df[(df['state'].isin(states)) & (df['season'].isin(seasons))]
-
-        # Create an overlayed line chart for each selected variable
-        overlay_chart = alt.Chart(filtered_df).mark_line(point=True).encode(
-            x=alt.X('season_week:Q', title='ILI Week'),
-            y=alt.Y('ili_plus:Q', title='ILI Plus data'),  # Default y-axis for initial display
-            color=alt.Color('location_name:N', title='State'),  # Differentiate by state
-            strokeDash=alt.StrokeDash('season:N', title='Season'),  # Differentiate by season
-            tooltip=['season_week', 'ili_plus', 'state', 'season']  # Tooltip details
-        ).properties(
-            title="Overlayed Admissions for Selected States and Seasons",
-            width=800,
-            height=400
-        )
-
-        # If there are multiple variables, overlay them
-        for variable in variables:
-            overlay_chart = overlay_chart.encode(
-                y=alt.Y(f'{variable}:Q', title=variable)  # Dynamically change the y-axis based on variable
-            )
-
-        return overlay_chart
-
-    # Check if selections are valid
-    if selected_states and selected_seasons and selected_variables:
-        st.markdown('## Overlay chart by state and season')
-        # Generate the overlayed chart
-        overlay_chart = plot_overlay_states_seasons(merged_df, selected_states, selected_seasons, selected_variables)
-        # Display the chart
-        st.altair_chart(overlay_chart, use_container_width=True)
-    else:
-        st.error("Please select at least one state, one season, and one variable.")
-
+    st.altair_chart( chart )
