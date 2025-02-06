@@ -18,6 +18,8 @@ if __name__ == "__main__":
     # Read the CSV file
     fludata = pd.read_csv(file_path_hosp)
 
+    st.set_page_config(layout='wide')
+
 #ILIDF
     ilidf = pd.DataFrame(ilidata)
     #cleaning offseason out of "season" column 
@@ -116,38 +118,8 @@ if __name__ == "__main__":
     st.markdown("### Merged ILI and Flu Data by Season, Week, and State")
     st.dataframe(merged_df)
 
-#plot 
-    def plot_altair_chart(df, variable, season):
-        return alt.Chart(df).mark_line(point=True).encode(
-            x='season_week:Q',  # Use 'ili_week' for the X-axis
-            y=f'{variable}:Q',  # Dynamic Y-axis based on the variable
-            tooltip=['season_week', variable]  # Tooltip showing ili_week and the selected variable
-        ).properties(
-            title=f"{variable} data for {season}", width=600, height=400
-        )
-
-    # Add Streamlit widgets to select states and seasons
-    st.markdown("## ILI Data by State and Season")
-    states = cleanilidf['state'].unique()  # Get the list of unique states
-    selected_states = st.multiselect("Select state to display charts for:", states, default=states[:1])  # Default to the first state
-
-    # Add Streamlit widget to select seasons
-    available_seasons = cleanilidf['season'].unique()
-    selected_seasons = st.multiselect(
-        "Select flu seasons to display:", 
-        available_seasons, 
-        default=available_seasons, 
-        key="season_selector"  # Unique key for season selector
-    )
-    # Add widget to select the variable (hospital admissions, ili_plus, ili, or ilib)
-    variables = ['hosp admissions', 'ili_plus', 'ili_plus_a', 'ili_plus_b']
-    selected_variables = st.multiselect(
-        "Select the data variables to display:",
-        variables,
-        default=variables  # Default to all variables
-    )
-
-    # Function to plot charts for a given state and season
+#PLOT
+    # Function to plot individual charts for each variable
     def plot_location_charts(df, location, season, variable):
         location_df = df[(df['state'] == location) & (df['season'] == season)]
         return alt.Chart(location_df).mark_line(point=True).encode(
@@ -155,8 +127,25 @@ if __name__ == "__main__":
             y=alt.Y(f'{variable}:Q', title=variable),
             tooltip=['season_week', variable]
         ).properties(
-            title=f"{location} - {season} - {variable}", width=600, height=400
+            title=f"{location} - {season} - {variable}", width=2000, height=400
         )
+
+    # Add Streamlit widgets to select states, seasons, and variables
+    st.markdown("## ILI Data by State and Season")
+    states = merged_df['state'].unique()  # Get the list of unique states
+    selected_states = st.multiselect("Select state to display charts for:", states, default=states[:1])  # Default to the first state
+
+    # Add Streamlit widget to select seasons
+    available_seasons = merged_df['season'].unique()
+    selected_seasons = st.multiselect(
+        "Select flu seasons to display:", 
+        available_seasons, 
+        default=available_seasons[:1], 
+        key="season_selector"  # Unique key for season selector
+    )
+    
+    # Add Streamlit widget to select variables
+    selected_variables = st.multiselect("Select variables to display:", merged_df.columns.tolist(), default=["ili_plus","ili_plus_a","ili_plus_b","hosp admissions"])  # Default to the 4 variables
 
     # Iterate through selected locations, seasons, and variables
     for location in selected_states:
@@ -167,21 +156,24 @@ if __name__ == "__main__":
                 continue
 
             # Plot charts for each variable selected
-            for variable in selected_variables:
-                # Create and display the chart for the specific location, season, and variable
+            st.markdown(f"#### Season: {season}")
+            cols = st.columns(len(selected_variables))  # Create columns for each selected variable
+            
+            for idx, variable in enumerate(selected_variables):
                 chart = plot_location_charts(merged_df, location, season, variable)
-                st.altair_chart(chart, use_container_width=True)
+                cols[idx].altair_chart(chart, use_container_width=True)
 
-    # Function to plot overlayed charts for selected states and seasons and variables #not properly working
-    def plot_overlay_states_seasons(df, states, seasons, variables):
+    
+     # Function to plot overlayed charts for selected states, seasons, and variables
+    """ def plot_overlay_states_seasons(df, states, seasons, variables):
         # Filter data based on selected states, seasons, and variables
         filtered_df = df[(df['state'].isin(states)) & (df['season'].isin(seasons))]
 
-        # Create an overlayed line chart for each selected variable
+        # Start with the first variable for overlayed chart
         overlay_chart = alt.Chart(filtered_df).mark_line(point=True).encode(
             x=alt.X('season_week:Q', title='ILI Week'),
             y=alt.Y('ili_plus:Q', title='ILI Plus data'),  # Default y-axis for initial display
-            color=alt.Color('location_name:N', title='State'),  # Differentiate by state
+            color=alt.Color('state:N', title='State'),  # Differentiate by state
             strokeDash=alt.StrokeDash('season:N', title='Season'),  # Differentiate by season
             tooltip=['season_week', 'ili_plus', 'state', 'season']  # Tooltip details
         ).properties(
@@ -197,14 +189,12 @@ if __name__ == "__main__":
             )
 
         return overlay_chart
-
-    # Check if selections are valid
+    
+    # Check if selections are valid for overlay chart
     if selected_states and selected_seasons and selected_variables:
         st.markdown('## Overlay chart by state and season')
-        # Generate the overlayed chart
         overlay_chart = plot_overlay_states_seasons(merged_df, selected_states, selected_seasons, selected_variables)
-        # Display the chart
         st.altair_chart(overlay_chart, use_container_width=True)
     else:
         st.error("Please select at least one state, one season, and one variable.")
-
+ """
