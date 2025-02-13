@@ -1,10 +1,10 @@
 #kam, luo, mcandrew
 # produce_data.py
 
-import pandas as pd
-from epiweeks import Week
-
 def produce_data():
+    import pandas as pd
+    from epiweeks import Week
+    
     # Set the working directory for hospital admission 
     file_path_hosp = "https://raw.githubusercontent.com/cdcepi/FluSight-forecast-hub/refs/heads/main/target-data/target-hospital-admissions.csv"
 
@@ -56,3 +56,7 @@ def produce_data():
     ili_plus_hosp = ili_plus_hosp.melt(id_vars=["location", "location_name", "season", "year", "week", "season_week"], value_vars=["ili_plus", "ili_plus_a", "ili_plus_b", "hospitalizations"], value_name="y")
 
     return ili_plus_hosp
+
+if __name__ == "__main__":
+
+    print("This function builds a single dataset of cases and hospitalizations. All other scripts depend on this")
