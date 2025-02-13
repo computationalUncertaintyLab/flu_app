@@ -1,6 +1,9 @@
 #kam, luo, mcandrew
 # produce_data.py
 
+import streamlit as st
+@st.cache_data
+
 def produce_data():
     import pandas as pd
     from epiweeks import Week
