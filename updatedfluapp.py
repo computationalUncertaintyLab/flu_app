@@ -12,7 +12,7 @@ from produce_data import produce_data
 if __name__ == "__main__":
     
     #--merge ili and hosp data
-    #@st.cache_data
+    
     ili_plus_hosp = produce_data()
 
     # Add Streamlit widgets to select states and seasons
