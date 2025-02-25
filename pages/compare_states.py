@@ -42,9 +42,9 @@ if __name__ == "__main__":
     
     selected_data = ili_plus_hosp.loc[ (ili_plus_hosp.location_name.isin(selected_states)) & (ili_plus_hosp.season.isin(selected_seasons)) & (ili_plus_hosp.variable.isin(selected_variables))  ]
 
-    chart = alt.Chart(selected_data).mark_line().encode(
-        x=alt.X("season_week:O", title="Season + Week")
-        ,y=alt.Y("y:Q", title="Y")
+    chart = alt.Chart(selected_data).mark_line(point=True).encode(
+        x=alt.X("season_week:O", title="Week")
+        ,y=alt.Y("y:Q", title=None)
         ,color="location_name:N"
         ,column="variable:N"
         ,row   ="season:N" 
@@ -53,5 +53,5 @@ if __name__ == "__main__":
         height=200
     )
 
-    st.altair_chart( chart )     
+    st.altair_chart(chart)     
 

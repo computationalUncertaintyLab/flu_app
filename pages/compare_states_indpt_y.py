@@ -45,9 +45,9 @@ if __name__ == "__main__":
         (ili_plus_hosp.variable.isin(selected_variables))
     ]
 
-    chart = alt.Chart(selected_data).mark_line().encode(
-        x=alt.X("season_week:O", title="Season + Week"),
-        y=alt.Y("y:Q", title="Y"),
+    chart = alt.Chart(selected_data).mark_line(point=True).encode(
+        x=alt.X("season_week:O", title="Week"),
+        y=alt.Y("y:Q", title=None),
         color="location_name:N"
     ).properties(
         width=200,
