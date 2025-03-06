@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     chart = alt.Chart(selected_data).mark_line().encode(
         x=alt.X("season_week:O", title="Season + Week")
-        ,y=alt.Y("y:Q", title="Y")
+        ,y=alt.Y("y:Q", title=None)
         ,color="season:N"
         ,column="variable:N"
         ,row   ="location_name:N" 
