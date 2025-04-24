@@ -1,0 +1,7 @@
+pandas
+google
+streamlit
+epiweeks
+altair
+matplotlib
+numpy
