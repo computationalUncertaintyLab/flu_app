@@ -10,7 +10,7 @@ if __name__ == "__main__":
         page_icon="🦠",
     )
 
-    st.write("# Welcome to Flu App Dashboard! 🦠")
+    st.write("# Welcome to Flu App Dashboard! Here is a CHANGE! 🦠")
 
     st.sidebar.success("Select a chart type above.")
 
